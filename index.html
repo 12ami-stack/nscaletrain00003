@@ -60,16 +60,21 @@
         .m-btn.active { background: #00cec9; border-color: #00cec9; color: #1e272e; box-shadow: 0 0 12px rgba(0,206,201,0.4); }
         .s-btn.active { background: #f39c12; border-color: #f39c12; color: #1e272e; box-shadow: 0 0 12px rgba(243,156,18,0.4); }
         .v-btn.active { background: #0984e3; border-color: #0984e3; color: #fff; box-shadow: 0 0 12px rgba(9,132,227,0.4); }
+        .m-row .btn { flex: 1 1 0; min-width: 0; padding: 8px 0; font-size: 11px; white-space: nowrap; }
+        .m-row #b-rand { flex-grow: 2; }
         .st-row { flex-wrap: wrap; }
         .st-row .btn { padding: 8px 2px; flex: 1 1 28%; white-space: nowrap; }
         .st-btn[data-type="eraser"].active { background: #e84393; border-color: #e84393; color: #fff; box-shadow: 0 0 12px rgba(232,67,147,0.5); }
         .sl-btn.active { background: #6c5ce7; border-color: #6c5ce7; color: #fff; box-shadow: 0 0 12px rgba(108,92,231,0.4); }
-        .small-btn { padding: 6px 4px; font-size: 11px; }
+        .small-btn { padding: 4px 4px; font-size: 11px; white-space: nowrap; }
         .st-btn[data-type="track"].active { background: #0984e3; border-color: #0984e3; color: #fff; box-shadow: 0 0 12px rgba(9,132,227,0.4); }
         .st-btn.rot1.active { background: #00b894; border-color: #00b894; box-shadow: 0 0 12px rgba(0,184,148,0.5); }
         .st-btn.rot2.active { background: #ff4757; border-color: #ff4757; color: #fff; box-shadow: 0 0 12px rgba(255,71,87,0.5); }
         .st-btn.active { background: #fdcb6e; border-color: #fdcb6e; color: #1e272e; box-shadow: 0 0 12px rgba(253,203,110,0.4); }
         .d-btn.active { background: #00b894; border-color: #00b894; color: #1e272e; box-shadow: 0 0 12px rgba(0,184,148,0.4); }
+        .t-btn { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: 11px; white-space: nowrap; }
+        #t-neon { flex-grow: 1.3; }
+        #t-classic { flex-grow: 1.7; }
         .t-btn.active { background: #e84393; border-color: #e84393; box-shadow: 0 0 12px rgba(232,67,147,0.4); }
         .c-btn.active { background: #9b59b6; border-color: #9b59b6; color: #fff; box-shadow: 0 0 12px rgba(155,89,182,0.4); }
         
@@ -135,10 +140,12 @@
         </div>
 
         <div class="section-title">分岐ルール</div>
-        <div class="button-group">
+        <div class="button-group m-row">
             <button class="btn m-btn" id="b-near" style="display:none">直近</button>
             <button class="btn m-btn active" id="b-rand">ランダム</button>
             <button class="btn m-btn" id="b-alt">交互</button>
+            <button class="btn m-btn" id="b-right">右</button>
+            <button class="btn m-btn" id="b-left">左</button>
         </div>
 
         <div class="section-title">描画モード</div>
@@ -176,8 +183,8 @@
             <button class="btn small-btn" id="load-btn">読み出し</button>
         </div>
         <div class="button-group">
-            <button class="btn small-btn" id="export-btn">ファイルに書き出し</button>
-            <button class="btn small-btn" id="import-btn">ファイルから読み込み</button>
+            <button class="btn small-btn" id="export-btn">ファイル書出</button>
+            <button class="btn small-btn" id="import-btn">ファイル読込</button>
         </div>
         <input type="file" id="import-file" accept=".json,application/json" style="display:none">
         <div id="save-msg" style="font-size:11px;color:rgba(255,255,255,0.75);min-height:14px"></div>
@@ -210,7 +217,7 @@
         const resetBtn = document.getElementById('reset-btn');
         const sHalf = document.getElementById('s-half'), sNormal = document.getElementById('s-normal'), sDouble = document.getElementById('s-double');
         const cOff = document.getElementById('c-off'), cOn = document.getElementById('c-on');
-        const bNear = document.getElementById('b-near'), bRand = document.getElementById('b-rand'), bAlt = document.getElementById('b-alt');
+        const bNear = document.getElementById('b-near'), bRand = document.getElementById('b-rand'), bAlt = document.getElementById('b-alt'), bRight = document.getElementById('b-right'), bLeft = document.getElementById('b-left');
         const tForest = document.getElementById('t-forest'), tNeon = document.getElementById('t-neon'), tClassic = document.getElementById('t-classic');
         const bgColorPicker = document.getElementById('bg-color-picker'), bgBrightness = document.getElementById('bg-brightness');
 
@@ -259,7 +266,7 @@
         cOff.addEventListener('click', () => { realPointEnabled = false; cOff.classList.add('active'); cOn.classList.remove('active'); });
         cOn.addEventListener('click', () => { realPointEnabled = true; cOn.classList.add('active'); cOff.classList.remove('active'); });
 
-        const mBtns = [[bNear, 'near'], [bRand, 'rand'], [bAlt, 'alt']];
+        const mBtns = [[bNear, 'near'], [bRand, 'rand'], [bAlt, 'alt'], [bRight, 'right'], [bLeft, 'left']];
         mBtns.forEach(([btn, m]) => btn.addEventListener('click', () => { mode = m; mBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === m)); }));
 
         tForest.addEventListener('click', () => { theme = 'forest'; customBgColor = themes.forest.bg; bgColorPicker.value = customBgColor; customTrainColor = themes.forest.train; document.getElementById('train-color-picker').value = customTrainColor; tForest.classList.add('active'); tNeon.classList.remove('active'); tClassic.classList.remove('active'); });
@@ -484,7 +491,7 @@
             trainSpeedMultiplier = Math.min(3, Math.max(0.25, num(st.speed, 1)));
             junctionSpeedMultiplier = Math.min(1, Math.max(0.1, num(st.junction, 0.5)));
             realPointEnabled = true;
-            mode = (st.mode === 'alt') ? 'alt' : 'rand'; // 「直近」は封印中のためランダムにする
+            mode = ['alt', 'right', 'left'].includes(st.mode) ? st.mode : 'rand'; // 「直近」は封印中のためランダムにする
             theme = themes[st.theme] ? st.theme : 'forest';
             customBgColor = (typeof st.bgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(st.bgColor)) ? st.bgColor : themes[theme].bg;
             bgBrightness.value = Math.min(100, Math.max(0, num(st.bgBright, 50)));
@@ -671,18 +678,24 @@
                 if (atNode && (candidates.length > 1 || !p2)) {
                     if (candidates.length > 0) {
                         let next;
-                        if (mode === 'near') {
-                            // 直近：電車の進行方向に最も近い（曲がる角度が最小の）線路を選ぶ。同じ角度が並んだらランダム
+                        if (mode === 'near' || mode === 'right' || mode === 'left') {
+                            // 直近：進行方向に最も近い線路 / 右：最も右に曲がる線路 / 左：最も左に曲がる線路。同じ条件が並んだらランダム
                             let prevPt = track[train.idx - train.dir];
                             let inAngle = prevPt ? Math.atan2(p1.y - prevPt.y, p1.x - prevPt.x) : currentAngle;
                             let scored = candidates.map(c => {
                                 let q = c.track[c.idx + c.dir];
                                 let diff = Math.atan2(q.y - p1.y, q.x - p1.x) - inAngle;
-                                diff = Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
+                                diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // 正が右（時計回り）、負が左
                                 return { c, diff };
                             });
-                            let best = Math.min(...scored.map(o => o.diff));
-                            let ties = scored.filter(o => o.diff - best < 1e-6).map(o => o.c);
+                            let pool = scored;
+                            if (mode !== 'near') { // 右・左では、Uターン（ほぼ真後ろ）の線路は、ほかに選べるものがあれば除く
+                                let noReverse = scored.filter(o => Math.abs(o.diff) < 2.6);
+                                if (noReverse.length) pool = noReverse;
+                            }
+                            let key = (o) => mode === 'near' ? Math.abs(o.diff) : (mode === 'right' ? -o.diff : o.diff);
+                            let best = Math.min(...pool.map(key));
+                            let ties = pool.filter(o => key(o) - best < 1e-6).map(o => o.c);
                             next = ties[Math.floor(Math.random() * ties.length)];
                         } else {
                             next = mode === 'rand' ? candidates[Math.floor(Math.random() * candidates.length)] : candidates[(altIdx++) % candidates.length];
@@ -708,10 +721,17 @@
                         train.t = 0; 
                         train.idx += train.dir; 
                     }
-                    if (track[train.idx + train.dir]) { p1 = track[train.idx]; p2 = track[train.idx + train.dir]; }
-                    let tx = p1.x + (p2.x - p1.x) * train.t, ty = p1.y + (p2.y - p1.y) * train.t;
-                    
-                    let targetAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    let tx, ty, targetAngle;
+                    if (track[train.idx + train.dir]) {
+                        p1 = track[train.idx]; p2 = track[train.idx + train.dir];
+                        tx = p1.x + (p2.x - p1.x) * train.t; ty = p1.y + (p2.y - p1.y) * train.t;
+                        targetAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    } else {
+                        // 線路の端の点に着いた瞬間：端の点に描く（以前は1つ前の点に描かれ、1フレームだけワープして残像に見えていた）
+                        let endP = track[train.idx], prevP = track[train.idx - train.dir] || endP;
+                        tx = endP.x; ty = endP.y;
+                        targetAngle = (prevP === endP) ? currentAngle : Math.atan2(endP.y - prevP.y, endP.x - prevP.x);
+                    }
                     if (realPointEnabled) {
                         let angleDiff = targetAngle - currentAngle;
                         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
