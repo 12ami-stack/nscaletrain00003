@@ -30,6 +30,14 @@
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px 14px;
         }
 
+        .sbar { position: fixed; background: rgba(255,255,255,0.14); border-radius: 7px; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 20; }
+        .sbar.show { opacity: 1; pointer-events: auto; }
+        #sb-v { right: 2px; top: 8px; bottom: 24px; width: 12px; }
+        #sb-h { left: 8px; right: 24px; bottom: 2px; height: 12px; }
+        .sbar .thumb { position: absolute; background: rgba(255,255,255,0.65); border-radius: 6px; cursor: grab; }
+        #sb-v .thumb { left: 0; right: 0; }
+        #sb-h .thumb { top: 0; bottom: 0; }
+
         #ui-panel {
             position: absolute; top: 20px; right: 20px;
             background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -52,7 +60,9 @@
         .m-btn.active { background: #00cec9; border-color: #00cec9; color: #1e272e; box-shadow: 0 0 12px rgba(0,206,201,0.4); }
         .s-btn.active { background: #f39c12; border-color: #f39c12; color: #1e272e; box-shadow: 0 0 12px rgba(243,156,18,0.4); }
         .v-btn.active { background: #0984e3; border-color: #0984e3; color: #fff; box-shadow: 0 0 12px rgba(9,132,227,0.4); }
-        .st-row .btn { padding: 8px 2px; }
+        .st-row { flex-wrap: wrap; }
+        .st-row .btn { padding: 8px 2px; flex: 1 1 28%; white-space: nowrap; }
+        .st-btn[data-type="eraser"].active { background: #e84393; border-color: #e84393; color: #fff; box-shadow: 0 0 12px rgba(232,67,147,0.5); }
         .sl-btn.active { background: #6c5ce7; border-color: #6c5ce7; color: #fff; box-shadow: 0 0 12px rgba(108,92,231,0.4); }
         .small-btn { padding: 6px 4px; font-size: 11px; }
         .st-btn[data-type="track"].active { background: #0984e3; border-color: #0984e3; color: #fff; box-shadow: 0 0 12px rgba(9,132,227,0.4); }
@@ -85,12 +95,17 @@
     <div id="instructions" style="display:none">
         <button id="guide-hide-btn">非表示</button>
         ✨ <b>操作ガイド</b><br>
-        ・「リアルなポイント通過」をONにすると、普段の走行速度はそのままに、青い分岐・連結部分と、内角90度以下の急な角度の部分でのみ、走行速度が「連結部・急角度」スライダーの倍率（初期値0.5）になり、なめらかに通過します。<br>
+        ・内角90度以下の急な角度の部分では、走行速度が2分の1になり、なめらかに通過します。<br>
         ・描画モードの「直線」で、水平・垂直・斜め45度の直線を描けます。<br>
         ・右上のパネルの「配置」で駅・住宅・ビル・木を選び、画面をクリックして置けます。「線路」を押すと線路を描く状態に戻ります。ストラクチャのボタンは、押すたびに黄（通常の角度）→緑（縦）→赤（斜め45度）→黄…と向きが切り替わります。<br>
-        ・右上のパネルから画面スケール（表示範囲を1・2・4倍）、全体の速度・連結部と急角度部の速度・背景色などを自由に調整できます。
+        ・「消しゴム」を選んで、ストラクチャをクリックすると消せます。線路は、クリックした位置の線分1本が消えます（ドラッグで続けて消せます）。<br>
+        ・マウスホイール（トラックパッド）で画面を動かせます。画面の右端・下端にマウスを近づけるとスクロールバーが現れます。<br>
+        ・右上のパネルから画面スケール（表示範囲を1・2・4倍）、全体の速度・背景色などを自由に調整できます。
     </div>
     
+    <div class="sbar" id="sb-v"><div class="thumb" id="sb-v-thumb"></div></div>
+    <div class="sbar" id="sb-h"><div class="thumb" id="sb-h-thumb"></div></div>
+
     <div id="ui-panel">
         <button class="btn" id="reset-btn">すべてリセット</button>
         
@@ -106,15 +121,17 @@
             <span class="val" id="speed-val">×1.00</span>
         </div>
 
+        <div style="display:none">
         <div class="section-title">ポイント通過挙動</div>
         <div class="button-group">
-            <button class="btn c-btn active" id="c-off">通常通り</button>
-            <button class="btn c-btn" id="c-on">ON (リアルな通過)</button>
+            <button class="btn c-btn" id="c-off">通常通り</button>
+            <button class="btn c-btn active" id="c-on">ON (リアルな通過)</button>
         </div>
         <div class="control-row">
             <span>連結部・急角度</span>
             <input type="range" id="junction-slider" min="0.1" max="1" step="0.05" value="0.5">
             <span class="val" id="junction-val">×0.50</span>
+        </div>
         </div>
 
         <div class="section-title">分岐ルール</div>
@@ -137,6 +154,7 @@
             <button class="btn st-btn" data-type="house">住宅</button>
             <button class="btn st-btn" data-type="building">ビル</button>
             <button class="btn st-btn" data-type="tree">木</button>
+            <button class="btn st-btn" data-type="eraser">消しゴム</button>
         </div>
         <div id="st-hint" style="font-size:11px;color:rgba(255,255,255,0.7);display:none"></div>
 
@@ -171,7 +189,7 @@
             <button class="btn t-btn" id="t-classic">クラシック</button>
         </div>
 
-        <div class="section-title">背景カスタム</div>
+        <div class="section-title">背景・電車カスタム</div>
         <div class="control-row">
             <span>カラー</span>
             <input type="color" id="bg-color-picker" value="#3b7a57">
@@ -179,6 +197,10 @@
         <div class="control-row">
             <span>明度</span>
             <input type="range" id="bg-brightness" min="0" max="100" value="50">
+        </div>
+        <div class="control-row">
+            <span>電車の色</span>
+            <input type="color" id="train-color-picker" value="#ff4757">
         </div>
     </div>
 
@@ -194,17 +216,18 @@
 
         let tracks = [], currentTrack = [], train = null, isDrawing = false, mode = 'rand', altIdx = 0, theme = 'forest';
         let customBgColor = '#3b7a57';
+        let customTrainColor = '#ff4757'; // 電車の色（テーマ選択で、そのテーマの色に戻る）
         let trainSpeedMultiplier = 1.0;
         let junctionSpeedMultiplier = 0.5; // 連結部・急角度部での走行速度倍率（通常速度に対する割合）
         const speedSlider = document.getElementById('speed-slider'), speedVal = document.getElementById('speed-val');
         const junctionSlider = document.getElementById('junction-slider'), junctionVal = document.getElementById('junction-val');
-        let realPointEnabled = false;
+        let realPointEnabled = true; // 常にON（メニューからは除去）
         
         const SNAP_DISTANCE = 35, SEGMENT_LENGTH = 60;
         const BASE_TRAIN_SPEED = 3.0;
 
         let currentAngle = 0;
-        const SLOW_ZONE_RADIUS = 15; // 連結部（青い点）・急角度の頂点からこの距離以内では走行速度がスライダーの倍率になる
+        const SLOW_ZONE_RADIUS = 15; // 急角度の頂点からこの距離以内では走行速度が倍率（junctionSpeedMultiplier）になる
 
         const themes = {
             forest: { bg: '#3b7a57', wood: '#5a3d28', rail: '#95a5a6', train: '#ff4757', node: 'rgba(52, 152, 219, 0.6)' },
@@ -215,8 +238,9 @@
         const resizeCanvas = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
         window.addEventListener('resize', resizeCanvas); resizeCanvas();
         const getSnapRadius = () => Math.min(SNAP_DISTANCE * viewScale, 45); // 2倍・4倍でも自分の直前の点に吸着しない上限
+        let viewOffX = 0, viewOffY = 0; // 画面スクロール：表示範囲の左上の座標（線路の座標系）
         let viewScale = 1; // 画面スケール：表示範囲を縦横それぞれ viewScale 倍に広げる（線路の座標は変えない）
-        const getMousePos = (e) => ({ x: e.clientX * viewScale, y: e.clientY * viewScale }), getDistance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        const getMousePos = (e) => ({ x: e.clientX * viewScale + viewOffX, y: e.clientY * viewScale + viewOffY }), getDistance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
         
         const sBtns = [[sHalf, 0.5], [sNormal, 1.0], [sDouble, 2.0]];
         const updateSpeedUI = () => {
@@ -238,39 +262,88 @@
         const mBtns = [[bNear, 'near'], [bRand, 'rand'], [bAlt, 'alt']];
         mBtns.forEach(([btn, m]) => btn.addEventListener('click', () => { mode = m; mBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === m)); }));
 
-        tForest.addEventListener('click', () => { theme = 'forest'; customBgColor = themes.forest.bg; bgColorPicker.value = customBgColor; tForest.classList.add('active'); tNeon.classList.remove('active'); tClassic.classList.remove('active'); });
-        tNeon.addEventListener('click', () => { theme = 'neon'; customBgColor = themes.neon.bg; bgColorPicker.value = customBgColor; tNeon.classList.add('active'); tForest.classList.remove('active'); tClassic.classList.remove('active'); });
-        tClassic.addEventListener('click', () => { theme = 'classic'; customBgColor = themes.classic.bg; bgColorPicker.value = customBgColor; tClassic.classList.add('active'); tForest.classList.remove('active'); tNeon.classList.remove('active'); });
+        tForest.addEventListener('click', () => { theme = 'forest'; customBgColor = themes.forest.bg; bgColorPicker.value = customBgColor; customTrainColor = themes.forest.train; document.getElementById('train-color-picker').value = customTrainColor; tForest.classList.add('active'); tNeon.classList.remove('active'); tClassic.classList.remove('active'); });
+        tNeon.addEventListener('click', () => { theme = 'neon'; customBgColor = themes.neon.bg; bgColorPicker.value = customBgColor; customTrainColor = themes.neon.train; document.getElementById('train-color-picker').value = customTrainColor; tNeon.classList.add('active'); tForest.classList.remove('active'); tClassic.classList.remove('active'); });
+        tClassic.addEventListener('click', () => { theme = 'classic'; customBgColor = themes.classic.bg; bgColorPicker.value = customBgColor; customTrainColor = themes.classic.train; document.getElementById('train-color-picker').value = customTrainColor; tClassic.classList.add('active'); tForest.classList.remove('active'); tNeon.classList.remove('active'); });
 
         bgColorPicker.addEventListener('input', (e) => { customBgColor = e.target.value; });
+        document.getElementById('train-color-picker').addEventListener('input', (e) => { customTrainColor = e.target.value; });
 
         const guidePanel = document.getElementById('instructions'), guideShowBtn = document.getElementById('guide-show-btn');
         document.getElementById('guide-hide-btn').addEventListener('click', () => { guidePanel.style.display = 'none'; guideShowBtn.style.display = 'block'; });
         guideShowBtn.addEventListener('click', () => { guidePanel.style.display = 'block'; guideShowBtn.style.display = 'none'; });
 
         let structures = [];      // 置いたストラクチャ { type, x, y, rot }（見た目のみ）
-        let structureSel = null;  // 選択中のストラクチャ。null のとき（「線路」ボタン）は線路を描く
+        let structureSel = null;  // 選択中のストラクチャ。null のとき（「線路」「消しゴム」）はストラクチャを置かない
+        let eraserOn = false;     // 消しゴムが選ばれているか
+        let isErasing = false;
         const ROTS = [0, Math.PI / 2, Math.PI / 4], ROT_NAMES = ['通常の角度（黄）', '縦（緑）', '斜め45度（赤）']; // ボタンを押すたびに 黄→緑→赤→黄…
         const structureRotIdx = { station: 0, house: 0, building: 0, tree: 0 };
         const stBtns = Array.from(document.querySelectorAll('.st-btn')), stHint = document.getElementById('st-hint');
         const updateStructureUI = () => {
             stBtns.forEach(b => {
-                let t = b.dataset.type, on = (t === 'track' && !structureSel) || t === structureSel, r = (t !== 'track' && on) ? structureRotIdx[t] : 0;
+                let t = b.dataset.type, on = (t === 'track' && !structureSel && !eraserOn) || (t === 'eraser' && eraserOn) || t === structureSel;
+                let r = (t !== 'track' && t !== 'eraser' && on) ? structureRotIdx[t] : 0;
                 b.classList.toggle('active', on);
                 b.classList.toggle('rot1', r === 1);
                 b.classList.toggle('rot2', r === 2);
             });
-            canvas.style.cursor = structureSel ? 'copy' : 'crosshair';
-            if (structureSel) { stHint.style.display = 'block'; stHint.textContent = '向き：' + ROT_NAMES[structureRotIdx[structureSel]] + '　同じボタンを押すたびに切り替わります'; }
+            canvas.style.cursor = eraserOn ? 'cell' : (structureSel ? 'copy' : 'crosshair');
+            if (eraserOn) { stHint.style.display = 'block'; stHint.textContent = 'ストラクチャ、または線路の線分をクリック（ドラッグ）で消します'; }
+            else if (structureSel) { stHint.style.display = 'block'; stHint.textContent = '向き：' + ROT_NAMES[structureRotIdx[structureSel]] + '　同じボタンを押すたびに切り替わります'; }
             else stHint.style.display = 'none';
         };
         stBtns.forEach(btn => btn.addEventListener('click', () => {
             let t = btn.dataset.type;
-            if (t === 'track') structureSel = null;
+            if (t === 'track') { structureSel = null; eraserOn = false; }
+            else if (t === 'eraser') { structureSel = null; eraserOn = true; }
             else if (structureSel === t) structureRotIdx[t] = (structureRotIdx[t] + 1) % ROTS.length; // 選択中に押すと 黄→緑→赤→黄
-            else { structureSel = t; structureRotIdx[t] = 0; } // 選んだ直後は黄（通常の角度）
+            else { structureSel = t; structureRotIdx[t] = 0; eraserOn = false; } // 選んだ直後は黄（通常の角度）
             updateStructureUI();
         }));
+
+        // ----- 消しゴム -----
+        const distToSeg = (p, a, b) => {
+            let dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+            let t = l2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+            return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+        };
+        const structHit = (st, p, m) => {
+            let dx = p.x - st.x, dy = p.y - st.y, r = st.rot || 0;
+            let lx = dx * Math.cos(r) + dy * Math.sin(r), ly = -dx * Math.sin(r) + dy * Math.cos(r);
+            if (st.type === 'tree') return Math.hypot(dx, dy) <= 16 + m;
+            let h = { station: [40, 13], house: [17, 15], building: [20, 20] }[st.type] || [20, 20];
+            return Math.abs(lx) <= h[0] + m && Math.abs(ly) <= h[1] + m;
+        };
+        const eraseAt = (pos) => {
+            // 1) ストラクチャ（重なっていれば、その位置のものをすべて消す）
+            let m = 6 * viewScale, hits = structures.filter(st => structHit(st, pos, m));
+            if (hits.length) { structures = structures.filter(st => !hits.includes(st)); return; }
+            // 2) 線路：クリック位置にいちばん近い線分1本を消す（線路は途中で分かれる）
+            let tol = 12 * viewScale, best = null;
+            tracks.forEach((track, ti) => {
+                for (let i = 0; i < track.length - 1; i++) {
+                    let d = distToSeg(pos, track[i], track[i + 1]);
+                    if (d < tol && (!best || d < best.d)) best = { d, ti, i };
+                }
+            });
+            if (!best) return;
+            let track = tracks[best.ti], i = best.i;
+            let A = track.slice(0, i + 1), B = track.slice(i + 1);
+            let pieces = [A, B].filter(t => t.length >= 2);
+            tracks.splice(best.ti, 1, ...pieces);
+            if (train && train.track === track) {
+                let si = Math.min(train.idx, train.idx + train.dir), moved = false;
+                if (si < i && A.length >= 2) { train.track = A; moved = true; }
+                else if (si > i && B.length >= 2) { train.track = B; train.idx -= (i + 1); moved = true; }
+                if (!moved) train = null;
+            }
+            if (!train && tracks.length) { // 電車が消えた線分にいた場合は、残った線路の先頭に置き直す
+                let t0 = tracks[0];
+                train = { track: t0, idx: 0, dir: 1, t: 0 };
+                currentAngle = Math.atan2(t0[1].y - t0[0].y, t0[1].x - t0[0].x);
+            }
+        };
 
         const drawStructure = (st) => {
             ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(st.rot || 0);
@@ -321,8 +394,9 @@
             return pos;
         };
 
-        canvas.addEventListener('mousedown', (e) => { if (structureSel) { let mp = getMousePos(e); structures.push({ type: structureSel, x: mp.x, y: mp.y, rot: ROTS[structureRotIdx[structureSel]] }); return; } isDrawing = true; let pos = findSnapPos(getMousePos(e)); currentTrack = [pos]; tracks.push(currentTrack); });
+        canvas.addEventListener('mousedown', (e) => { if (eraserOn) { isErasing = true; eraseAt(getMousePos(e)); return; } if (structureSel) { let mp = getMousePos(e); structures.push({ type: structureSel, x: mp.x, y: mp.y, rot: ROTS[structureRotIdx[structureSel]] }); return; } isDrawing = true; let pos = findSnapPos(getMousePos(e)); currentTrack = [pos]; tracks.push(currentTrack); });
         canvas.addEventListener('mousemove', (e) => {
+            if (isErasing) { eraseAt(getMousePos(e)); return; }
             if (!isDrawing) return; let pos = getMousePos(e);
             // 直線モード（ボタン）のときは、各線分の向きを8方向（45度刻み）に固定する
             let straight = drawMode === 'straight';
@@ -337,6 +411,7 @@
             }
         });
         window.addEventListener('mouseup', () => {
+            isErasing = false;
             if (!isDrawing) return; isDrawing = false;
             if (currentTrack.length < 2) { tracks.splice(tracks.indexOf(currentTrack), 1); currentTrack = null; return; }
             let lastP = currentTrack[currentTrack.length - 1], snapP = findSnapPos(lastP);
@@ -376,8 +451,8 @@
             angle: currentAngle,
             settings: {
                 speed: trainSpeedMultiplier, junction: junctionSpeedMultiplier, realPoint: realPointEnabled,
-                mode: mode, theme: theme, bgColor: customBgColor, bgBright: parseFloat(bgBrightness.value),
-                drawMode: drawMode, viewScale: viewScale
+                mode: mode, theme: theme, bgColor: customBgColor, trainColor: customTrainColor, bgBright: parseFloat(bgBrightness.value),
+                drawMode: drawMode, viewScale: viewScale, viewOffX: viewOffX, viewOffY: viewOffY
             }
         });
 
@@ -408,13 +483,14 @@
             let st = d.settings || {};
             trainSpeedMultiplier = Math.min(3, Math.max(0.25, num(st.speed, 1)));
             junctionSpeedMultiplier = Math.min(1, Math.max(0.1, num(st.junction, 0.5)));
-            realPointEnabled = !!st.realPoint;
+            realPointEnabled = true;
             mode = (st.mode === 'alt') ? 'alt' : 'rand'; // 「直近」は封印中のためランダムにする
             theme = themes[st.theme] ? st.theme : 'forest';
             customBgColor = (typeof st.bgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(st.bgColor)) ? st.bgColor : themes[theme].bg;
             bgBrightness.value = Math.min(100, Math.max(0, num(st.bgBright, 50)));
             drawMode = st.drawMode === 'straight' ? 'straight' : 'normal';
             viewScale = [1, 2, 4].includes(st.viewScale) ? st.viewScale : 1;
+            viewOffX = num(st.viewOffX, 0); viewOffY = num(st.viewOffY, 0);
             // UIに反映
             updateSpeedUI();
             junctionSlider.value = junctionSpeedMultiplier; junctionVal.textContent = '×' + junctionSpeedMultiplier.toFixed(2);
@@ -422,6 +498,8 @@
             mBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === mode));
             tForest.classList.toggle('active', theme === 'forest'); tNeon.classList.toggle('active', theme === 'neon'); tClassic.classList.toggle('active', theme === 'classic');
             bgColorPicker.value = customBgColor;
+            customTrainColor = (typeof st.trainColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(st.trainColor)) ? st.trainColor : themes[theme].train;
+            document.getElementById('train-color-picker').value = customTrainColor;
             dBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === drawMode));
             vBtns.forEach(([b, bv]) => b.classList.toggle('active', bv === viewScale));
         };
@@ -465,6 +543,53 @@
         });
         showSlotInfo();
 
+
+        // ===== 画面スクロール（マウスホイール + 画面端に近づくと現れるスクロールバー） =====
+        const sbV = document.getElementById('sb-v'), sbH = document.getElementById('sb-h');
+        const thumbV = document.getElementById('sb-v-thumb'), thumbH = document.getElementById('sb-h-thumb');
+        let sbDrag = null;
+        const computeExtent = (axis) => {
+            let viewLen = (axis === 'x' ? window.innerWidth : window.innerHeight) * viewScale;
+            let off = axis === 'x' ? viewOffX : viewOffY, mn = off, mx = off + viewLen;
+            const add = (p) => { let v = axis === 'x' ? p.x : p.y; if (v < mn) mn = v; if (v > mx) mx = v; };
+            tracks.forEach(t => t.forEach(add)); structures.forEach(add);
+            return { min: mn - viewLen, L: (mx - mn) + 2 * viewLen, viewLen: viewLen }; // 内容と表示範囲の外側にも、表示範囲1つ分の余白
+        };
+        const updateScrollbars = () => {
+            [['x', sbH, thumbH], ['y', sbV, thumbV]].forEach(([axis, bar, thumb]) => {
+                if (!bar.classList.contains('show')) return;
+                let ext = (sbDrag && sbDrag.axis === axis) ? sbDrag.ext : computeExtent(axis);
+                let trackPx = axis === 'x' ? bar.clientWidth : bar.clientHeight, off = axis === 'x' ? viewOffX : viewOffY;
+                let len = Math.max(30, Math.min(trackPx, trackPx * ext.viewLen / ext.L));
+                let pos = Math.max(0, Math.min(trackPx - len, (off - ext.min) / ext.L * trackPx));
+                if (axis === 'x') { thumb.style.left = pos + 'px'; thumb.style.width = len + 'px'; }
+                else { thumb.style.top = pos + 'px'; thumb.style.height = len + 'px'; }
+            });
+        };
+        const refreshScrollbarVisibility = (e) => {
+            let nearR = e.clientX >= window.innerWidth - 24, nearB = e.clientY >= window.innerHeight - 24;
+            sbV.classList.toggle('show', nearR || !!(sbDrag && sbDrag.axis === 'y'));
+            sbH.classList.toggle('show', nearB || !!(sbDrag && sbDrag.axis === 'x'));
+        };
+        window.addEventListener('mousemove', (e) => {
+            if (sbDrag) {
+                let d = ((sbDrag.axis === 'x' ? e.clientX : e.clientY) - sbDrag.startClient) / sbDrag.trackPx * sbDrag.ext.L;
+                if (sbDrag.axis === 'x') viewOffX = sbDrag.startOff + d; else viewOffY = sbDrag.startOff + d;
+            }
+            refreshScrollbarVisibility(e);
+        });
+        document.documentElement.addEventListener('mouseleave', () => { if (!sbDrag) { sbV.classList.remove('show'); sbH.classList.remove('show'); } });
+        window.addEventListener('mouseup', (e) => { if (sbDrag) { sbDrag = null; refreshScrollbarVisibility(e); } });
+        [['x', sbH, thumbH], ['y', sbV, thumbV]].forEach(([axis, bar, thumb]) => thumb.addEventListener('mousedown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            sbDrag = { axis: axis, startClient: axis === 'x' ? e.clientX : e.clientY, startOff: axis === 'x' ? viewOffX : viewOffY, ext: computeExtent(axis), trackPx: axis === 'x' ? bar.clientWidth : bar.clientHeight };
+        }));
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            let k = (e.deltaMode === 1 ? 16 : 1) * viewScale;
+            viewOffX += e.deltaX * k; viewOffY += e.deltaY * k;
+        }, { passive: false });
+
         function drawRailway(track) {
             if (track.length < 2) return;
             let currentTheme = themes[theme];
@@ -506,20 +631,12 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
-            ctx.scale(1 / viewScale, 1 / viewScale); // 表示範囲を広げる（以降は線路の座標系で描画）
+            ctx.scale(1 / viewScale, 1 / viewScale);
+            ctx.translate(-viewOffX, -viewOffY); // 表示範囲を広げる（以降は線路の座標系で描画）
 
             structures.forEach(drawStructure); // ストラクチャは線路・電車の下に描く
 
-            let nodes = [];
-            tracks.forEach(track => {
-                drawRailway(track);
-                track.forEach(p => {
-                    if (tracks.some(t => t !== track && t.some(o => getDistance(p, o) < 2))) {
-                        ctx.fillStyle = currentTheme.node; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
-                        nodes.push(p);
-                    }
-                });
-            });
+            tracks.forEach(track => drawRailway(track)); // 連結部も他の場所と同じ描き方（青い丸はなし）
 
             // 急な角度の頂点（線路の内角が90度以下）を収集
             let sharpCorners = [];
@@ -532,7 +649,7 @@
                     if ((ax * bx + ay * by) / (la * lb) >= -1e-9) sharpCorners.push(p); // cos>=0 → 内角90度以下
                 }
             });
-            let slowPoints = nodes.concat(sharpCorners);
+            let slowPoints = sharpCorners; // 減速するのは急な角度の頂点の近くだけ（連結部は他の線路と同じ）
 
             if (train) {
                 let track = train.track, p1 = track[train.idx], p2 = track[train.idx + train.dir];
@@ -608,7 +725,7 @@
                     }
 
                     ctx.save(); ctx.translate(tx, ty); ctx.rotate(currentAngle);
-                    ctx.fillStyle = currentTheme.train; ctx.fillRect(-22, -10, 44, 20);
+                    ctx.fillStyle = customTrainColor; ctx.fillRect(-22, -10, 44, 20);
                     ctx.fillStyle = '#ecf0f1'; ctx.fillRect(-18, -2, 36, 4);
                     ctx.fillStyle = '#2c3e50'; ctx.fillRect(10, -7, 6, 5); ctx.fillRect(10, 2, 6, 5); ctx.fillRect(-6, -7, 12, 5); ctx.fillRect(-6, 2, 12, 5);
                     ctx.fillStyle = '#f1c40f'; ctx.fillRect(20, -8, 3, 4); ctx.fillRect(20, 4, 3, 4);
@@ -616,6 +733,7 @@
                 }
             }
             ctx.restore();
+            updateScrollbars();
             requestAnimationFrame(gameLoop);
         }
         gameLoop();
