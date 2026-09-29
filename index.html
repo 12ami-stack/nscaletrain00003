@@ -703,7 +703,14 @@
                         train.track = next.track; train.idx = next.idx; train.dir = next.dir; train.t = 0;
                         track = train.track; p1 = track[train.idx]; p2 = track[train.idx + train.dir];
 
-                    } else if (!p2) { train = null; }
+                    } else if (!p2) {
+                        // 途切れている線路の末端に着いたら、消えずにスイッチバック（向きを反転して引き返す）
+                        let rd = -train.dir, rp2 = track[train.idx + rd];
+                        if (rp2) {
+                            train.dir = rd; train.t = 0; p2 = rp2;
+                            currentAngle = Math.atan2(rp2.y - p1.y, rp2.x - p1.x); // 車体は回転させず、進行方向を入れ替える
+                        } else { train = null; }
+                    }
                 }
 
                 if (train && p2) {
