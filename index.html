@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>多角形線路の電車ゲーム</title>
+    <style>
+        :root {
+            --primary-color: #3b7a57;
+            --panel-bg: rgba(20, 30, 25, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.15);
+            --text-color: #ffffff;
+        }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: var(--primary-color); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        #canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+        
+        #instructions {
+            position: absolute; top: 20px; left: 20px;
+            background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 16px 20px; border-radius: 12px; font-size: 13px; color: var(--text-color);
+            pointer-events: none; line-height: 1.6; border: 1px solid var(--panel-border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 340px;
+        }
+
+        #guide-hide-btn, #guide-show-btn {
+            pointer-events: auto; cursor: pointer; color: var(--text-color); font-size: 12px; font-weight: 600;
+            background: rgba(255,255,255,0.1); border: 1px solid var(--panel-border); border-radius: 8px; padding: 4px 10px;
+        }
+        #guide-hide-btn { float: right; margin-left: 12px; }
+        #guide-show-btn {
+            position: absolute; top: 20px; left: 20px; background: var(--panel-bg);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px 14px;
+        }
+
+        #ui-panel {
+            position: absolute; top: 20px; right: 20px;
+            background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 16px; border-radius: 14px; border: 1px solid var(--panel-border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 12px; width: 230px;
+            max-height: calc(100vh - 40px); overflow-y: auto;
+        }
+
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.6); margin-bottom: -4px; font-weight: 700; }
+        .button-group { display: flex; gap: 6px; }
+
+        .btn {
+            background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.15);
+            padding: 8px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s ease; flex: 1; text-align: center;
+        }
+        .btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        
+        .m-btn.active { background: #00cec9; border-color: #00cec9; color: #1e272e; box-shadow: 0 0 12px rgba(0,206,201,0.4); }
+        .s-btn.active { background: #f39c12; border-color: #f39c12; color: #1e272e; box-shadow: 0 0 12px rgba(243,156,18,0.4); }
+        .v-btn.active { background: #0984e3; border-color: #0984e3; color: #fff; box-shadow: 0 0 12px rgba(9,132,227,0.4); }
+        .st-row .btn { padding: 8px 2px; }
+        .sl-btn.active { background: #6c5ce7; border-color: #6c5ce7; color: #fff; box-shadow: 0 0 12px rgba(108,92,231,0.4); }
+        .small-btn { padding: 6px 4px; font-size: 11px; }
+        .st-btn[data-type="track"].active { background: #0984e3; border-color: #0984e3; color: #fff; box-shadow: 0 0 12px rgba(9,132,227,0.4); }
+        .st-btn.rot1.active { background: #00b894; border-color: #00b894; box-shadow: 0 0 12px rgba(0,184,148,0.5); }
+        .st-btn.rot2.active { background: #ff4757; border-color: #ff4757; color: #fff; box-shadow: 0 0 12px rgba(255,71,87,0.5); }
+        .st-btn.active { background: #fdcb6e; border-color: #fdcb6e; color: #1e272e; box-shadow: 0 0 12px rgba(253,203,110,0.4); }
+        .d-btn.active { background: #00b894; border-color: #00b894; color: #1e272e; box-shadow: 0 0 12px rgba(0,184,148,0.4); }
+        .t-btn.active { background: #e84393; border-color: #e84393; box-shadow: 0 0 12px rgba(232,67,147,0.4); }
+        .c-btn.active { background: #9b59b6; border-color: #9b59b6; color: #fff; box-shadow: 0 0 12px rgba(155,89,182,0.4); }
+        
+        #reset-btn { background: #ff4757; border-color: #ff4757; flex: none; width: 100%; margin-bottom: 4px; }
+        #reset-btn:hover { background: #ff6b81; }
+
+        .control-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: white; }
+        .control-row input[type="color"] {
+            appearance: none; -webkit-appearance: none; border: none; width: 32px; height: 32px;
+            border-radius: 50%; cursor: pointer; background: transparent; padding: 0;
+        }
+        .control-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        .control-row input[type="color"]::-webkit-color-swatch { border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; }
+
+        .control-row .val { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; margin-left: 8px; }
+        .control-row input[type="range"] {
+            flex: 1; margin-left: 10px; accent-color: #00cec9; cursor: pointer; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <button id="guide-show-btn">✨ 操作ガイドを表示</button>
+    <div id="instructions" style="display:none">
+        <button id="guide-hide-btn">非表示</button>
+        ✨ <b>操作ガイド</b><br>
+        ・「リアルなポイント通過」をONにすると、普段の走行速度はそのままに、青い分岐・連結部分と、内角90度以下の急な角度の部分でのみ、走行速度が「連結部・急角度」スライダーの倍率（初期値0.5）になり、なめらかに通過します。<br>
+        ・描画モードの「直線」で、水平・垂直・斜め45度の直線を描けます。<br>
+        ・右上のパネルの「配置」で駅・住宅・ビル・木を選び、画面をクリックして置けます。「線路」を押すと線路を描く状態に戻ります。ストラクチャのボタンは、押すたびに黄（通常の角度）→緑（縦）→赤（斜め45度）→黄…と向きが切り替わります。<br>
+        ・右上のパネルから画面スケール（表示範囲を1・2・4倍）、全体の速度・連結部と急角度部の速度・背景色などを自由に調整できます。
+    </div>
+    
+    <div id="ui-panel">
+        <button class="btn" id="reset-btn">すべてリセット</button>
+        
+        <div class="section-title">電車の速度</div>
+        <div class="button-group">
+            <button class="btn s-btn" id="s-half">1/2倍</button>
+            <button class="btn s-btn active" id="s-normal">1倍</button>
+            <button class="btn s-btn" id="s-double">2倍</button>
+        </div>
+        <div class="control-row">
+            <span>全体</span>
+            <input type="range" id="speed-slider" min="0.25" max="3" step="0.05" value="1">
+            <span class="val" id="speed-val">×1.00</span>
+        </div>
+
+        <div class="section-title">ポイント通過挙動</div>
+        <div class="button-group">
+            <button class="btn c-btn active" id="c-off">通常通り</button>
+            <button class="btn c-btn" id="c-on">ON (リアルな通過)</button>
+        </div>
+        <div class="control-row">
+            <span>連結部・急角度</span>
+            <input type="range" id="junction-slider" min="0.1" max="1" step="0.05" value="0.5">
+            <span class="val" id="junction-val">×0.50</span>
+        </div>
+
+        <div class="section-title">分岐ルール</div>
+        <div class="button-group">
+            <button class="btn m-btn" id="b-near" style="display:none">直近</button>
+            <button class="btn m-btn active" id="b-rand">ランダム</button>
+            <button class="btn m-btn" id="b-alt">交互</button>
+        </div>
+
+        <div class="section-title">描画モード</div>
+        <div class="button-group">
+            <button class="btn d-btn active" id="d-normal">通常</button>
+            <button class="btn d-btn" id="d-straight">直線</button>
+        </div>
+
+        <div class="section-title">配置（線路・ストラクチャ）</div>
+        <div class="button-group st-row">
+            <button class="btn st-btn active" data-type="track">線路</button>
+            <button class="btn st-btn" data-type="station">駅</button>
+            <button class="btn st-btn" data-type="house">住宅</button>
+            <button class="btn st-btn" data-type="building">ビル</button>
+            <button class="btn st-btn" data-type="tree">木</button>
+        </div>
+        <div id="st-hint" style="font-size:11px;color:rgba(255,255,255,0.7);display:none"></div>
+
+        <div class="section-title">画面スケール（表示範囲）</div>
+        <div class="button-group">
+            <button class="btn v-btn active" id="v-1">1倍</button>
+            <button class="btn v-btn" id="v-2">2倍</button>
+            <button class="btn v-btn" id="v-4">4倍</button>
+        </div>
+
+        <div class="section-title">保存・読み出し</div>
+        <div class="button-group">
+            <button class="btn sl-btn small-btn active" data-slot="1">枠1</button>
+            <button class="btn sl-btn small-btn" data-slot="2">枠2</button>
+            <button class="btn sl-btn small-btn" data-slot="3">枠3</button>
+        </div>
+        <div class="button-group">
+            <button class="btn small-btn" id="save-btn">保存</button>
+            <button class="btn small-btn" id="load-btn">読み出し</button>
+        </div>
+        <div class="button-group">
+            <button class="btn small-btn" id="export-btn">ファイルに書き出し</button>
+            <button class="btn small-btn" id="import-btn">ファイルから読み込み</button>
+        </div>
+        <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+        <div id="save-msg" style="font-size:11px;color:rgba(255,255,255,0.75);min-height:14px"></div>
+
+        <div class="section-title">カラーテーマ</div>
+        <div class="button-group">
+            <button class="btn t-btn active" id="t-forest">森林</button>
+            <button class="btn t-btn" id="t-neon">ネオン</button>
+            <button class="btn t-btn" id="t-classic">クラシック</button>
+        </div>
+
+        <div class="section-title">背景カスタム</div>
+        <div class="control-row">
+            <span>カラー</span>
+            <input type="color" id="bg-color-picker" value="#3b7a57">
+        </div>
+        <div class="control-row">
+            <span>明度</span>
+            <input type="range" id="bg-brightness" min="0" max="100" value="50">
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+        const resetBtn = document.getElementById('reset-btn');
+        const sHalf = document.getElementById('s-half'), sNormal = document.getElementById('s-normal'), sDouble = document.getElementById('s-double');
+        const cOff = document.getElementById('c-off'), cOn = document.getElementById('c-on');
+        const bNear = document.getElementById('b-near'), bRand = document.getElementById('b-rand'), bAlt = document.getElementById('b-alt');
+        const tForest = document.getElementById('t-forest'), tNeon = document.getElementById('t-neon'), tClassic = document.getElementById('t-classic');
+        const bgColorPicker = document.getElementById('bg-color-picker'), bgBrightness = document.getElementById('bg-brightness');
+
+        let tracks = [], currentTrack = [], train = null, isDrawing = false, mode = 'rand', altIdx = 0, theme = 'forest';
+        let customBgColor = '#3b7a57';
+        let trainSpeedMultiplier = 1.0;
+        let junctionSpeedMultiplier = 0.5; // 連結部・急角度部での走行速度倍率（通常速度に対する割合）
+        const speedSlider = document.getElementById('speed-slider'), speedVal = document.getElementById('speed-val');
+        const junctionSlider = document.getElementById('junction-slider'), junctionVal = document.getElementById('junction-val');
+        let realPointEnabled = false;
+        
+        const SNAP_DISTANCE = 35, SEGMENT_LENGTH = 60;
+        const BASE_TRAIN_SPEED = 3.0;
+
+        let currentAngle = 0;
+        const SLOW_ZONE_RADIUS = 15; // 連結部（青い点）・急角度の頂点からこの距離以内では走行速度がスライダーの倍率になる
+
+        const themes = {
+            forest: { bg: '#3b7a57', wood: '#5a3d28', rail: '#95a5a6', train: '#ff4757', node: 'rgba(52, 152, 219, 0.6)' },
+            neon:   { bg: '#0b0c10', wood: '#8e44ad', rail: '#66fcf1', train: '#ff007f', node: 'rgba(102, 252, 241, 0.6)' },
+            classic:{ bg: '#f1f2f6', wood: '#2f3542', rail: '#747d8c', train: '#ff4757', node: 'rgba(47, 53, 66, 0.6)' }
+        };
+
+        const resizeCanvas = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+        const getSnapRadius = () => Math.min(SNAP_DISTANCE * viewScale, 45); // 2倍・4倍でも自分の直前の点に吸着しない上限
+        let viewScale = 1; // 画面スケール：表示範囲を縦横それぞれ viewScale 倍に広げる（線路の座標は変えない）
+        const getMousePos = (e) => ({ x: e.clientX * viewScale, y: e.clientY * viewScale }), getDistance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        
+        const sBtns = [[sHalf, 0.5], [sNormal, 1.0], [sDouble, 2.0]];
+        const updateSpeedUI = () => {
+            speedSlider.value = trainSpeedMultiplier;
+            speedVal.textContent = '×' + trainSpeedMultiplier.toFixed(2);
+            sBtns.forEach(([btn, v]) => btn.classList.toggle('active', Math.abs(trainSpeedMultiplier - v) < 1e-6));
+        };
+        sBtns.forEach(([btn, v]) => btn.addEventListener('click', () => { trainSpeedMultiplier = v; updateSpeedUI(); }));
+        speedSlider.addEventListener('input', (e) => { trainSpeedMultiplier = parseFloat(e.target.value); updateSpeedUI(); });
+
+        junctionSlider.addEventListener('input', (e) => {
+            junctionSpeedMultiplier = parseFloat(e.target.value);
+            junctionVal.textContent = '×' + junctionSpeedMultiplier.toFixed(2);
+        });
+
+        cOff.addEventListener('click', () => { realPointEnabled = false; cOff.classList.add('active'); cOn.classList.remove('active'); });
+        cOn.addEventListener('click', () => { realPointEnabled = true; cOn.classList.add('active'); cOff.classList.remove('active'); });
+
+        const mBtns = [[bNear, 'near'], [bRand, 'rand'], [bAlt, 'alt']];
+        mBtns.forEach(([btn, m]) => btn.addEventListener('click', () => { mode = m; mBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === m)); }));
+
+        tForest.addEventListener('click', () => { theme = 'forest'; customBgColor = themes.forest.bg; bgColorPicker.value = customBgColor; tForest.classList.add('active'); tNeon.classList.remove('active'); tClassic.classList.remove('active'); });
+        tNeon.addEventListener('click', () => { theme = 'neon'; customBgColor = themes.neon.bg; bgColorPicker.value = customBgColor; tNeon.classList.add('active'); tForest.classList.remove('active'); tClassic.classList.remove('active'); });
+        tClassic.addEventListener('click', () => { theme = 'classic'; customBgColor = themes.classic.bg; bgColorPicker.value = customBgColor; tClassic.classList.add('active'); tForest.classList.remove('active'); tNeon.classList.remove('active'); });
+
+        bgColorPicker.addEventListener('input', (e) => { customBgColor = e.target.value; });
+
+        const guidePanel = document.getElementById('instructions'), guideShowBtn = document.getElementById('guide-show-btn');
+        document.getElementById('guide-hide-btn').addEventListener('click', () => { guidePanel.style.display = 'none'; guideShowBtn.style.display = 'block'; });
+        guideShowBtn.addEventListener('click', () => { guidePanel.style.display = 'block'; guideShowBtn.style.display = 'none'; });
+
+        let structures = [];      // 置いたストラクチャ { type, x, y, rot }（見た目のみ）
+        let structureSel = null;  // 選択中のストラクチャ。null のとき（「線路」ボタン）は線路を描く
+        const ROTS = [0, Math.PI / 2, Math.PI / 4], ROT_NAMES = ['通常の角度（黄）', '縦（緑）', '斜め45度（赤）']; // ボタンを押すたびに 黄→緑→赤→黄…
+        const structureRotIdx = { station: 0, house: 0, building: 0, tree: 0 };
+        const stBtns = Array.from(document.querySelectorAll('.st-btn')), stHint = document.getElementById('st-hint');
+        const updateStructureUI = () => {
+            stBtns.forEach(b => {
+                let t = b.dataset.type, on = (t === 'track' && !structureSel) || t === structureSel, r = (t !== 'track' && on) ? structureRotIdx[t] : 0;
+                b.classList.toggle('active', on);
+                b.classList.toggle('rot1', r === 1);
+                b.classList.toggle('rot2', r === 2);
+            });
+            canvas.style.cursor = structureSel ? 'copy' : 'crosshair';
+            if (structureSel) { stHint.style.display = 'block'; stHint.textContent = '向き：' + ROT_NAMES[structureRotIdx[structureSel]] + '　同じボタンを押すたびに切り替わります'; }
+            else stHint.style.display = 'none';
+        };
+        stBtns.forEach(btn => btn.addEventListener('click', () => {
+            let t = btn.dataset.type;
+            if (t === 'track') structureSel = null;
+            else if (structureSel === t) structureRotIdx[t] = (structureRotIdx[t] + 1) % ROTS.length; // 選択中に押すと 黄→緑→赤→黄
+            else { structureSel = t; structureRotIdx[t] = 0; } // 選んだ直後は黄（通常の角度）
+            updateStructureUI();
+        }));
+
+        const drawStructure = (st) => {
+            ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(st.rot || 0);
+            const shadow = 'rgba(0,0,0,0.25)';
+            if (st.type === 'station') {
+                ctx.fillStyle = shadow; ctx.fillRect(-40 + 3, -13 + 3, 80, 26);
+                ctx.fillStyle = '#dfe6e9'; ctx.fillRect(-40, -13, 80, 26);
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(-40, -13, 80, 3); ctx.fillRect(-40, 10, 80, 3);
+                ctx.fillStyle = '#d63031'; ctx.fillRect(-32, -7, 64, 14);
+                ctx.fillStyle = '#b71c1c'; ctx.fillRect(-32, -1, 64, 2);
+            } else if (st.type === 'house') {
+                ctx.fillStyle = shadow; ctx.fillRect(-17 + 3, -15 + 3, 34, 30);
+                ctx.fillStyle = '#e17055'; ctx.fillRect(-17, -15, 34, 15);
+                ctx.fillStyle = '#c0553c'; ctx.fillRect(-17, 0, 34, 15);
+                ctx.fillStyle = '#5d4037'; ctx.fillRect(-17, -1, 34, 2);
+                ctx.fillStyle = '#7f8c8d'; ctx.fillRect(8, -11, 5, 5);
+            } else if (st.type === 'building') {
+                ctx.fillStyle = shadow; ctx.fillRect(-20 + 4, -20 + 4, 40, 40);
+                ctx.fillStyle = '#636e72'; ctx.fillRect(-20, -20, 40, 40);
+                ctx.fillStyle = '#b2bec3'; ctx.fillRect(-15, -15, 30, 30);
+                ctx.fillStyle = '#2d3436'; ctx.fillRect(-9, -9, 9, 9); ctx.fillRect(3, 2, 8, 8);
+            } else if (st.type === 'tree') {
+                ctx.fillStyle = shadow; ctx.beginPath(); ctx.arc(3, 3, 16, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#1e6b3a'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#2e9950'; ctx.beginPath(); ctx.arc(-4, -4, 9, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        };
+
+        let drawMode = 'normal'; // 'normal' または 'straight'（直線：水平・垂直・斜め45度の8方向）
+        const dBtns = [[document.getElementById('d-normal'), 'normal'], [document.getElementById('d-straight'), 'straight']];
+        dBtns.forEach(([btn, m]) => btn.addEventListener('click', () => {
+            drawMode = m;
+            dBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === m));
+        }));
+
+        const vBtns = [[document.getElementById('v-1'), 1], [document.getElementById('v-2'), 2], [document.getElementById('v-4'), 4]];
+        vBtns.forEach(([btn, v]) => btn.addEventListener('click', () => {
+            viewScale = v;
+            vBtns.forEach(([b, bv]) => b.classList.toggle('active', bv === v));
+        }));
+
+        const findSnapPos = (pos) => {
+            for (let track of tracks) {
+                for (let p of track) { if (getDistance(pos, p) < getSnapRadius()) return { ...p }; }
+            }
+            return pos;
+        };
+
+        canvas.addEventListener('mousedown', (e) => { if (structureSel) { let mp = getMousePos(e); structures.push({ type: structureSel, x: mp.x, y: mp.y, rot: ROTS[structureRotIdx[structureSel]] }); return; } isDrawing = true; let pos = findSnapPos(getMousePos(e)); currentTrack = [pos]; tracks.push(currentTrack); });
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return; let pos = getMousePos(e);
+            // 直線モード（ボタン）のときは、各線分の向きを8方向（45度刻み）に固定する
+            let straight = drawMode === 'straight';
+            // マウスが1回で大きく動いた場合（拡大表示時に起きやすい）も、追いつくまで線分を追加する
+            for (let n = 0; n < 100; n++) {
+                let lastPos = currentTrack[currentTrack.length - 1]; if (!lastPos) return;
+                if (getDistance(pos, lastPos) <= SEGMENT_LENGTH) break;
+                let angle = Math.atan2(pos.y - lastPos.y, pos.x - lastPos.x);
+                if (straight) angle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+                let nextPos = { x: lastPos.x + Math.cos(angle) * SEGMENT_LENGTH, y: lastPos.y + Math.sin(angle) * SEGMENT_LENGTH };
+                currentTrack.push(findSnapPos(nextPos));
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            if (!isDrawing) return; isDrawing = false;
+            if (currentTrack.length < 2) { tracks.splice(tracks.indexOf(currentTrack), 1); currentTrack = null; return; }
+            let lastP = currentTrack[currentTrack.length - 1], snapP = findSnapPos(lastP);
+            if (getDistance(lastP, snapP) < getSnapRadius()) currentTrack[currentTrack.length - 1] = snapP;
+            if (!train) { 
+                train = { track: currentTrack, idx: 0, dir: 1, t: 0 }; 
+                let p1 = currentTrack[0], p2 = currentTrack[1];
+                currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            }
+            currentTrack = null;
+        });
+        resetBtn.addEventListener('click', () => { tracks = []; structures = []; train = null; ctx.clearRect(0, 0, canvas.width, canvas.height); });
+
+
+        // ===== 保存・読み出し（ブラウザ内3枠 + ファイル書き出し／読み込み） =====
+        const SAVE_KEY = (n) => 'trainGameSave' + n;
+        let saveSlot = 1;
+        const saveMsg = document.getElementById('save-msg');
+        const slotBtns = Array.from(document.querySelectorAll('.sl-btn'));
+        const fmtTime = (ms) => { let d = new Date(ms), z = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); };
+        const readSlot = (n) => { try { let raw = localStorage.getItem(SAVE_KEY(n)); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
+        const showSlotInfo = () => {
+            let d = readSlot(saveSlot);
+            saveMsg.textContent = '枠' + saveSlot + '：' + (d && d.savedAt ? fmtTime(d.savedAt) + ' に保存' : '空');
+        };
+        slotBtns.forEach(b => b.addEventListener('click', () => {
+            saveSlot = parseInt(b.dataset.slot, 10);
+            slotBtns.forEach(x => x.classList.toggle('active', x === b));
+            showSlotInfo();
+        }));
+
+        const makeSaveData = () => ({
+            v: 1, savedAt: Date.now(),
+            tracks: tracks.map(t => t.map(p => ({ x: p.x, y: p.y }))),
+            structures: structures.map(o => ({ type: o.type, x: o.x, y: o.y, rot: o.rot || 0 })),
+            train: train ? { ti: tracks.indexOf(train.track), idx: train.idx, dir: train.dir, t: train.t } : null,
+            angle: currentAngle,
+            settings: {
+                speed: trainSpeedMultiplier, junction: junctionSpeedMultiplier, realPoint: realPointEnabled,
+                mode: mode, theme: theme, bgColor: customBgColor, bgBright: parseFloat(bgBrightness.value),
+                drawMode: drawMode, viewScale: viewScale
+            }
+        });
+
+        const applySaveData = (d) => {
+            if (!d || !Array.isArray(d.tracks)) throw new Error('bad data');
+            const num = (v, def) => Number.isFinite(v) ? v : def;
+            let newTracks = d.tracks.map(t => (Array.isArray(t) ? t : []).filter(p => p && Number.isFinite(p.x) && Number.isFinite(p.y)).map(p => ({ x: p.x, y: p.y }))).filter(t => t.length >= 2);
+            const types = ['station', 'house', 'building', 'tree'];
+            let newStructs = (Array.isArray(d.structures) ? d.structures : []).filter(o => o && types.includes(o.type) && Number.isFinite(o.x) && Number.isFinite(o.y)).map(o => ({ type: o.type, x: o.x, y: o.y, rot: num(o.rot, 0) }));
+            isDrawing = false; currentTrack = [];
+            tracks = newTracks; structures = newStructs;
+            // 電車
+            train = null;
+            if (d.train && newTracks.length) {
+                let ti = d.train.ti, tr = d.tracks[ti];
+                // 元の配列で除外された線路がある場合に備え、保存時の線路と点列が一致するものを探す
+                let idxNew = -1;
+                if (tr) idxNew = newTracks.findIndex(t => t.length === tr.length && t[0].x === tr[0].x && t[0].y === tr[0].y && t[t.length - 1].x === tr[tr.length - 1].x && t[t.length - 1].y === tr[tr.length - 1].y);
+                let track = newTracks[idxNew];
+                let dir = d.train.dir === -1 ? -1 : 1, idx = Math.round(num(d.train.idx, 0));
+                if (track && idx >= 0 && idx < track.length && track[idx + dir]) train = { track: track, idx: idx, dir: dir, t: Math.min(0.999, Math.max(0, num(d.train.t, 0))) };
+            }
+            if (!train && newTracks.length) {
+                train = { track: newTracks[0], idx: 0, dir: 1, t: 0 };
+            }
+            currentAngle = train ? num(d.angle, Math.atan2(train.track[train.idx + train.dir].y - train.track[train.idx].y, train.track[train.idx + train.dir].x - train.track[train.idx].x)) : 0;
+            // 設定
+            let st = d.settings || {};
+            trainSpeedMultiplier = Math.min(3, Math.max(0.25, num(st.speed, 1)));
+            junctionSpeedMultiplier = Math.min(1, Math.max(0.1, num(st.junction, 0.5)));
+            realPointEnabled = !!st.realPoint;
+            mode = (st.mode === 'alt') ? 'alt' : 'rand'; // 「直近」は封印中のためランダムにする
+            theme = themes[st.theme] ? st.theme : 'forest';
+            customBgColor = (typeof st.bgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(st.bgColor)) ? st.bgColor : themes[theme].bg;
+            bgBrightness.value = Math.min(100, Math.max(0, num(st.bgBright, 50)));
+            drawMode = st.drawMode === 'straight' ? 'straight' : 'normal';
+            viewScale = [1, 2, 4].includes(st.viewScale) ? st.viewScale : 1;
+            // UIに反映
+            updateSpeedUI();
+            junctionSlider.value = junctionSpeedMultiplier; junctionVal.textContent = '×' + junctionSpeedMultiplier.toFixed(2);
+            cOn.classList.toggle('active', realPointEnabled); cOff.classList.toggle('active', !realPointEnabled);
+            mBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === mode));
+            tForest.classList.toggle('active', theme === 'forest'); tNeon.classList.toggle('active', theme === 'neon'); tClassic.classList.toggle('active', theme === 'classic');
+            bgColorPicker.value = customBgColor;
+            dBtns.forEach(([b, bm]) => b.classList.toggle('active', bm === drawMode));
+            vBtns.forEach(([b, bv]) => b.classList.toggle('active', bv === viewScale));
+        };
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            try { localStorage.setItem(SAVE_KEY(saveSlot), JSON.stringify(makeSaveData())); showSlotInfo(); saveMsg.textContent += '（保存しました）'; }
+            catch (e) { saveMsg.textContent = 'このブラウザでは保存できませんでした。ファイルへの書き出しをお使いください。'; }
+        });
+        document.getElementById('load-btn').addEventListener('click', () => {
+            let d = readSlot(saveSlot);
+            if (!d) { saveMsg.textContent = '枠' + saveSlot + '：空のため読み出せません'; return; }
+            try { applySaveData(d); showSlotInfo(); saveMsg.textContent += '（読み出しました）'; }
+            catch (e) { saveMsg.textContent = '枠' + saveSlot + '：データを読み出せませんでした'; }
+        });
+
+        // ファイル書き出し（公開ページでは downloads 機能、なければ通常のダウンロード）
+        document.getElementById('export-btn').addEventListener('click', async () => {
+            let json = JSON.stringify(makeSaveData(), null, 1), filename = 'train-game-save.json';
+            try {
+                if (window.claude && typeof window.claude.use === 'function') {
+                    let dl = await window.claude.use('downloads');
+                    if (dl) { await dl.save({ filename: filename, data: json }); saveMsg.textContent = 'ファイルを書き出しました'; return; }
+                }
+            } catch (e) {
+                if (e && e.code === 'declined') { saveMsg.textContent = '書き出しを取りやめました'; return; }
+            }
+            try {
+                let a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' })); a.download = filename;
+                document.body.appendChild(a); a.click(); a.remove(); saveMsg.textContent = 'ファイルを書き出しました';
+            } catch (e) { saveMsg.textContent = 'ファイルを書き出せませんでした'; }
+        });
+        const importFile = document.getElementById('import-file');
+        document.getElementById('import-btn').addEventListener('click', () => importFile.click());
+        importFile.addEventListener('change', () => {
+            let f = importFile.files && importFile.files[0]; if (!f) return;
+            let r = new FileReader();
+            r.onload = () => { try { applySaveData(JSON.parse(r.result)); saveMsg.textContent = 'ファイルを読み込みました'; } catch (e) { saveMsg.textContent = 'ファイルを読み込めませんでした（形式が違います）'; } importFile.value = ''; };
+            r.onerror = () => { saveMsg.textContent = 'ファイルを読み込めませんでした'; };
+            r.readAsText(f);
+        });
+        showSlotInfo();
+
+        function drawRailway(track) {
+            if (track.length < 2) return;
+            let currentTheme = themes[theme];
+            ctx.save(); ctx.strokeStyle = currentTheme.wood; ctx.lineWidth = 6;
+            for (let i = 0; i < track.length - 1; i++) {
+                let p1 = track[i], p2 = track[i + 1], dist = getDistance(p1, p2), angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                for (let d = 0; d <= dist; d += 12) {
+                    ctx.save(); ctx.translate(p1.x + Math.cos(angle) * d, p1.y + Math.sin(angle) * d); ctx.rotate(angle + Math.PI / 2);
+                    ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(12, 0); ctx.stroke(); ctx.restore();
+                }
+            }
+            ctx.restore();
+            ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = currentTheme.rail;
+            // 各線分に平行なレールを引く（角でも線路幅が7×2のまま変わらない）
+            for (let side of [7, -7]) {
+                ctx.beginPath();
+                for (let i = 0; i < track.length - 1; i++) {
+                    let p1 = track[i], p2 = track[i + 1], angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    let nx = Math.cos(angle + Math.PI / 2) * side, ny = Math.sin(angle + Math.PI / 2) * side;
+                    if (i === 0) ctx.moveTo(p1.x + nx, p1.y + ny); else ctx.lineTo(p1.x + nx, p1.y + ny);
+                    ctx.lineTo(p2.x + nx, p2.y + ny);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            let currentTheme = themes[theme];
+            
+            let hex = customBgColor.replace('#', '');
+            let r = parseInt(hex.substring(0,2), 16), g = parseInt(hex.substring(2,4), 16), b = parseInt(hex.substring(4,6), 16);
+            let brightFactor = bgBrightness.value / 50;
+            r = Math.min(255, Math.max(0, r * brightFactor));
+            g = Math.min(255, Math.max(0, g * brightFactor));
+            b = Math.min(255, Math.max(0, b * brightFactor));
+            
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.scale(1 / viewScale, 1 / viewScale); // 表示範囲を広げる（以降は線路の座標系で描画）
+
+            structures.forEach(drawStructure); // ストラクチャは線路・電車の下に描く
+
+            let nodes = [];
+            tracks.forEach(track => {
+                drawRailway(track);
+                track.forEach(p => {
+                    if (tracks.some(t => t !== track && t.some(o => getDistance(p, o) < 2))) {
+                        ctx.fillStyle = currentTheme.node; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
+                        nodes.push(p);
+                    }
+                });
+            });
+
+            // 急な角度の頂点（線路の内角が90度以下）を収集
+            let sharpCorners = [];
+            tracks.forEach(track => {
+                for (let i = 1; i < track.length - 1; i++) {
+                    let p = track[i], a = track[i - 1], b = track[i + 1];
+                    let ax = a.x - p.x, ay = a.y - p.y, bx = b.x - p.x, by = b.y - p.y;
+                    let la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+                    if (la === 0 || lb === 0) continue;
+                    if ((ax * bx + ay * by) / (la * lb) >= -1e-9) sharpCorners.push(p); // cos>=0 → 内角90度以下
+                }
+            });
+            let slowPoints = nodes.concat(sharpCorners);
+
+            if (train) {
+                let track = train.track, p1 = track[train.idx], p2 = track[train.idx + train.dir];
+
+                let atNode = (train.t === 0);
+                let currentPos = p1;
+
+                let candidates = [];
+                for (let t of tracks) {
+                    for (let i = 0; i < t.length; i++) {
+                        if (getDistance(currentPos, t[i]) < 5) {
+                            if (i > 0 && !(t === track && ((train.dir === 1 && i === train.idx) || (train.dir === -1 && i === train.idx + 1)))) candidates.push({ track: t, idx: i, dir: -1 });
+                            if (i < t.length - 1 && !(t === track && ((train.dir === 1 && i === train.idx + 1) || (train.dir === -1 && i === train.idx)))) candidates.push({ track: t, idx: i, dir: 1 });
+                        }
+                    }
+                }
+
+                // 青い部分（ノード）に到達して方向転換が発生する瞬間
+                if (atNode && (candidates.length > 1 || !p2)) {
+                    if (candidates.length > 0) {
+                        let next;
+                        if (mode === 'near') {
+                            // 直近：電車の進行方向に最も近い（曲がる角度が最小の）線路を選ぶ。同じ角度が並んだらランダム
+                            let prevPt = track[train.idx - train.dir];
+                            let inAngle = prevPt ? Math.atan2(p1.y - prevPt.y, p1.x - prevPt.x) : currentAngle;
+                            let scored = candidates.map(c => {
+                                let q = c.track[c.idx + c.dir];
+                                let diff = Math.atan2(q.y - p1.y, q.x - p1.x) - inAngle;
+                                diff = Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
+                                return { c, diff };
+                            });
+                            let best = Math.min(...scored.map(o => o.diff));
+                            let ties = scored.filter(o => o.diff - best < 1e-6).map(o => o.c);
+                            next = ties[Math.floor(Math.random() * ties.length)];
+                        } else {
+                            next = mode === 'rand' ? candidates[Math.floor(Math.random() * candidates.length)] : candidates[(altIdx++) % candidates.length];
+                        }
+                        train.track = next.track; train.idx = next.idx; train.dir = next.dir; train.t = 0;
+                        track = train.track; p1 = track[train.idx]; p2 = track[train.idx + train.dir];
+
+                    } else if (!p2) { train = null; }
+                }
+
+                if (train && p2) {
+                    let segDist = getDistance(p1, p2); 
+                    let currentSpeed = BASE_TRAIN_SPEED * trainSpeedMultiplier;
+
+                    // 現在位置が連結部（青い点）または急角度の頂点の近くにあるときだけ、走行速度を倍率にする
+                    let curX = p1.x + (p2.x - p1.x) * train.t, curY = p1.y + (p2.y - p1.y) * train.t;
+                    let inJunctionZone = realPointEnabled && slowPoints.some(n => getDistance({ x: curX, y: curY }, n) < SLOW_ZONE_RADIUS);
+                    let speedFactor = inJunctionZone ? junctionSpeedMultiplier : 1.0;
+
+                    train.t += (currentSpeed * speedFactor) / segDist;
+                    
+                    if (train.t >= 1.0) { 
+                        train.t = 0; 
+                        train.idx += train.dir; 
+                    }
+                    if (track[train.idx + train.dir]) { p1 = track[train.idx]; p2 = track[train.idx + train.dir]; }
+                    let tx = p1.x + (p2.x - p1.x) * train.t, ty = p1.y + (p2.y - p1.y) * train.t;
+                    
+                    let targetAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    if (realPointEnabled) {
+                        let angleDiff = targetAngle - currentAngle;
+                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        
+                        // 回転のなめらかさは通常どおり
+                        let turnSpeed = 0.25;
+                        currentAngle += angleDiff * turnSpeed;
+                    } else {
+                        currentAngle = targetAngle;
+                    }
+
+                    ctx.save(); ctx.translate(tx, ty); ctx.rotate(currentAngle);
+                    ctx.fillStyle = currentTheme.train; ctx.fillRect(-22, -10, 44, 20);
+                    ctx.fillStyle = '#ecf0f1'; ctx.fillRect(-18, -2, 36, 4);
+                    ctx.fillStyle = '#2c3e50'; ctx.fillRect(10, -7, 6, 5); ctx.fillRect(10, 2, 6, 5); ctx.fillRect(-6, -7, 12, 5); ctx.fillRect(-6, 2, 12, 5);
+                    ctx.fillStyle = '#f1c40f'; ctx.fillRect(20, -8, 3, 4); ctx.fillRect(20, 4, 3, 4);
+                    ctx.restore();
+                }
+            }
+            ctx.restore();
+            requestAnimationFrame(gameLoop);
+        }
+        gameLoop();
+    </script>
+</body>
+</html>
